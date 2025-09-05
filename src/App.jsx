@@ -1,13 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { predictSignature, getBaseURL } from "./api";
 import * as pdfjsLib from "pdfjs-dist";
-// Worker de pdf.js empaquetado por Vite (evita errores de fake worker)
 import pdfjsWorker from "pdfjs-dist/build/pdf.worker.min.js?worker";
 import "./index.css";
 
 pdfjsLib.GlobalWorkerOptions.workerPort = new pdfjsWorker();
 
-/** Config “silenciosa” (sin UI) */
 const API_BASE = getBaseURL();
 const DEFAULT_THRESHOLD = 0.7;
 const DEFAULT_TTA = 0;
@@ -26,20 +24,17 @@ export default function App() {
   // Formulario de registro
   const [draft, setDraft] = useState(emptyDraft);
 
-  // Último análisis IA (IMAGEN)
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState("");
   const [busy, setBusy] = useState(false);
   const [aiResult, setAiResult] = useState(null);
 
-  // Análisis de PDF (frontend)
   const [pdfFile, setPdfFile] = useState(null);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfCropUrl, setPdfCropUrl] = useState("");
   const [pdfResult, setPdfResult] = useState(null);
-  const [pageIndex, setPageIndex] = useState(-1); // -1=última
+  const [pageIndex, setPageIndex] = useState(-1); 
 
-  // Tabla de registros
   const [rows, setRows] = useState([]);
 
   // Persistencia
@@ -61,7 +56,6 @@ export default function App() {
     return () => URL.revokeObjectURL(url);
   }, [file]);
 
-  // Añadir fila (Estado inicia Pendiente; los análisis la podrán actualizar a “Corroborado” si REAL)
   const addRow = (e) => {
     e.preventDefault();
     const row = {
@@ -69,11 +63,11 @@ export default function App() {
       documento: draft.documentoURL?.trim() || "",
       estado: "Pendiente"
     };
-    setRows(prev => [row, ...prev]); // nueva es la MÁS RECIENTE (índice 0)
+    setRows(prev => [row, ...prev]); 
     setDraft(emptyDraft);
   };
 
-  // ---------- Analizar IA (IMAGEN) ----------
+  // ---------- Analizar IA ----------
   const inputRef = useRef(null);
   const analyze = async () => {
     if (!file) return alert("Selecciona una imagen.");
@@ -86,7 +80,6 @@ export default function App() {
       });
       setAiResult(data);
 
-      // Si el resultado es REAL → actualizar estado de la fila más reciente a “Corroborado”
       const isReal = String(data?.label || "").toUpperCase() === "REAL";
       if (isReal && rows.length > 0) {
         setRows(prev => {
@@ -155,7 +148,6 @@ export default function App() {
   }
 
   function findAnchorRect(textContent, viewport) {
-    // Tolerante: si falla, el caller usa bottomRect()
     const keywords = /firma|firmado|signature|firmante|firma:|firmado por/i;
     let bestY = -Infinity;
     for (const it of (textContent.items || [])) {
@@ -175,10 +167,8 @@ export default function App() {
   async function renderPageToCanvas(pdfArrayBuffer, pageNumber, scale = 2.8) {
     const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(pdfArrayBuffer) });
     const pdf = await loadingTask.promise;
-
-    // pageNumber: -1 = última, 0 = primera
     const targetIndex = pageNumber >= 0 ? Math.min(pageNumber, pdf.numPages - 1) : (pdf.numPages - 1);
-    const page = await pdf.getPage(targetIndex + 1); // pdf.js es 1-index
+    const page = await pdf.getPage(targetIndex + 1); 
     const viewport = page.getViewport({ scale });
 
     const canvas = document.createElement("canvas");
@@ -192,7 +182,7 @@ export default function App() {
       const textContent = await page.getTextContent();
       anchorRect = findAnchorRect(textContent, viewport);
     } catch (_) {
-      // PDFs escaneados no tienen capa de texto
+
     }
     if (!anchorRect) anchorRect = bottomRect(viewport, 0.35);
 
@@ -205,7 +195,7 @@ export default function App() {
   if (!cv || !cv.Mat) throw new Error("OpenCV.js no está listo.");
 
   // ====== Parámetros afinables ======
-  const EXCLUDE_RIGHT_FRAC = 0.20; // 20% derecho (suele estar el QR). Pon 0 si no aplica.
+  const EXCLUDE_RIGHT_FRAC = 0.20; 
   const MIN_AREA_FRACTION = 0.0008;
   const MAX_FILL_FOR_SIG  = 0.42;
   const MIN_ASPECT_FOR_SIG = 3.0;
@@ -225,15 +215,13 @@ export default function App() {
 
   const W = roiCanvas.width, H = roiCanvas.height;
 
-  // --- 2) Quitar línea horizontal (base de firma)
   const kHorizW = Math.max(25, Math.round(W * HLINE_FRAC));
   const kernelH = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(kHorizW, 1));
   const linesH  = new cv.Mat();
-  let   noLines = new cv.Mat(); // <-- LET, no const
+  let   noLines = new cv.Mat(); 
   cv.morphologyEx(bw, linesH, cv.MORPH_OPEN, kernelH);
   cv.subtract(bw, linesH, noLines);
 
-  // --- 3) Excluir banda derecha (para evitar QR/sellos allí)
   if (EXCLUDE_RIGHT_FRAC > 0) {
     const xCut = Math.round(W * (1 - EXCLUDE_RIGHT_FRAC));
     const mask = new cv.Mat.zeros(noLines.rows, noLines.cols, cv.CV_8UC1);
@@ -241,8 +229,8 @@ export default function App() {
     const dstRoi = mask.roi(new cv.Rect(0, 0, xCut, H));
     srcRoi.copyTo(dstRoi);
     srcRoi.delete(); dstRoi.delete();
-    noLines.delete();       // libera el viejo Mat
-    noLines = mask;         // reasigna al nuevo (válido porque es 'let')
+    noLines.delete();      
+    noLines = mask;         
   }
 
   // --- 4) Contornos y selección por rasgos “de firma”
