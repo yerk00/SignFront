@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Panel de Firmas</title>
+
+    <!-- Worker oficial de pdf.js (ajusta versión si ya usas otra) -->
+    <script>
+      window.PDFJS_WORKER =
+        "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
+    </script>
+    
+
+    <!-- OpenCV -->
+    <script async src="https://docs.opencv.org/4.10.0/opencv.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
